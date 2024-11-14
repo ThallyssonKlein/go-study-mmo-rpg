@@ -1,20 +1,10 @@
-package main
+package websocket
 
 import (
-    "encoding/json"
     "net/http"
-    "github.com/gorilla/websocket"
     "sync"
+    "github.com/gorilla/websocket"
 )
-
-var upgrader = websocket.Upgrader{
-    ReadBufferSize:  1024,
-    WriteBufferSize: 1024,
-}
-
-type Response struct {
-    Message string `json:"message"`
-}
 
 type Room struct {
     connections map[*websocket.Conn]bool
@@ -25,20 +15,14 @@ type Room struct {
 var rooms = make(map[string]*Room)
 var roomsMutex = &sync.Mutex{}
 
-func helloHandler(w http.ResponseWriter, r *http.Request) {
-    response := Response{Message: "Hello, World!"}
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(response)
-}
-
-func wsHandler(w http.ResponseWriter, r *http.Request) {
+func WSHandler(w http.ResponseWriter, r *http.Request) {
     roomID := r.URL.Query().Get("room")
     if roomID == "" {
         http.Error(w, "Room ID is required", http.StatusBadRequest)
         return
     }
 
-    conn, err := upgrader.Upgrade(w, r, nil)
+    conn, err := Upgrader.Upgrade(w, r, nil)
     if err != nil {
         http.Error(w, "Could not open websocket connection", http.StatusBadRequest)
         return
@@ -80,10 +64,4 @@ func (room *Room) run() {
         }
         room.Unlock()
     }
-}
-
-func main() {
-    http.HandleFunc("/hello", helloHandler)
-    http.HandleFunc("/ws", wsHandler)
-    http.ListenAndServe(":8080", nil)
 }
