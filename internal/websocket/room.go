@@ -4,6 +4,7 @@ import (
     "net/http"
     "sync"
     "github.com/gorilla/websocket"
+	"encoding/json"
 )
 
 type Room struct {
@@ -14,6 +15,19 @@ type Room struct {
 
 var rooms = make(map[string]*Room)
 var roomsMutex = &sync.Mutex{}
+
+type Player string
+
+// warrior, archer, wizard
+const (
+	Warrior Player = "warrior"
+	Archer  Player = "archer"
+	Wizard  Player = "wizard"
+)
+
+type MessageChoosePlayer struct {
+	PlayerID Player
+}
 
 func WSHandler(w http.ResponseWriter, r *http.Request) {
     roomID := r.URL.Query().Get("room")
@@ -50,6 +64,21 @@ func WSHandler(w http.ResponseWriter, r *http.Request) {
         room.Unlock()
         conn.Close()
     }()
+
+	for {
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			continue
+		}
+
+		var msg MessageChoosePlayer
+		err = json.Unmarshal(message, &msg)
+		if err != nil {
+			continue
+		}
+
+		room.broadcast <- message
+	}
 }
 
 func (room *Room) run() {
