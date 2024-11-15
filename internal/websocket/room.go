@@ -11,22 +11,38 @@ type Room struct {
     connections map[*websocket.Conn]bool
     broadcast   chan []byte
     sync.Mutex
+    characters  map[*websocket.Conn]Character
 }
 
 var rooms = make(map[string]*Room)
 var roomsMutex = &sync.Mutex{}
 
-type Player string
+type Action string
+type Character string
 
 // warrior, archer, wizard
 const (
-	Warrior Player = "warrior"
-	Archer  Player = "archer"
-	Wizard  Player = "wizard"
+	Warrior Character = "warrior"
+	Archer  Character = "archer"
+	Wizard  Character = "wizard"
+)
+const (
+    Attack  Action = "attack"
+    Defend  Action = "defend"
+    UseItem Action = "use_item"
+    Dodge   Action = "dodge"
 )
 
-type MessageChoosePlayer struct {
-	PlayerID Player
+type MessageChooseCharacter struct {
+	Character Character
+}
+
+type MessageAction struct {
+    Action Action
+}
+
+type MessageConfirmation struct {
+    Message string `json:"message"`
 }
 
 func WSHandler(w http.ResponseWriter, r *http.Request) {
@@ -71,11 +87,25 @@ func WSHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		var msg MessageChoosePlayer
+		var msg MessageChooseCharacter
 		err = json.Unmarshal(message, &msg)
 		if err != nil {
-			continue
-		}
+            var msg MessageAction
+            err = json.Unmarshal(message, &msg)
+            if err != nil {
+			    continue
+            }
+		} else {
+            room.Lock()
+            room.characters[conn] = msg.Character
+            room.Unlock()
+
+            confirmationMessage := MessageConfirmation{
+                Message: "Character chosen successfully",
+            }
+            confirmationBytes, _ := json.Marshal(confirmationMessage)
+            conn.WriteMessage(websocket.TextMessage, confirmationBytes)
+        }
 
 		room.broadcast <- message
 	}
