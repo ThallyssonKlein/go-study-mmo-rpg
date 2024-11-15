@@ -34,7 +34,7 @@ const (
 )
 
 type MessageChooseCharacter struct {
-	Character Character
+	Character Character `json:"character"`
 }
 
 type MessageAction struct {
@@ -94,6 +94,12 @@ func WSHandler(w http.ResponseWriter, r *http.Request) {
             err = json.Unmarshal(message, &msg)
             if err != nil {
 			    continue
+            } else {
+                confirmationMessage := MessageConfirmation{
+                    Message: "Character chosen successfully",
+                }
+                confirmationBytes, _ := json.Marshal(confirmationMessage)
+                conn.WriteMessage(websocket.TextMessage, confirmationBytes)
             }
 		} else {
             room.Lock()
